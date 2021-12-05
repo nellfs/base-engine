@@ -66,10 +66,6 @@ impl State {
         }
     }
 
-    fn set_title(&mut self, title: &str, window: &Window) {
-        window.set_title(title);
-    }
-
     fn input(&mut self, event: &WindowEvent) -> bool {
         false
     }
@@ -117,8 +113,8 @@ fn main() {
     env_logger::init();
     let event_loop = EventLoop::new();
     let window = WindowBuilder::new().build(&event_loop).unwrap();
+    window.set_title("Hello World");
     let mut state: State = pollster::block_on(State::new(&window));
-    state.set_title("Hello World!", &window);
 
     event_loop.run(move |event, _, control_flow| {
         match event {
