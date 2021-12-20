@@ -36,6 +36,13 @@ fn main() {
     while !window.should_close() {
         //Events
         process_events(&mut window, &events);
+
+        //Render
+        unsafe {
+            gl::ClearColor(0.2, 0.2, 0.3, 1.0);
+            gl::Clear(gl::COLOR_BUFFER_BIT);
+        }
+        // GLFW: Swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
         window.swap_buffers();
         glfw.poll_events();
     }
