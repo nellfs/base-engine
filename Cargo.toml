@@ -7,6 +7,6 @@ resolver = "2"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-gl = { version = "0.14.0", optional = true}
-glutin = { version = "0.28.0", optional = true}
+gl = "0.14.0"
+glfw = "0.43.0"
 winit = "0.26.0"
