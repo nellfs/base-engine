@@ -1,9 +1,9 @@
 extern crate gl;
 extern crate glfw;
 
+use std::ffi::c_void;
 use std::ffi::CString;
 use std::mem;
-use std::os::raw::c_void;
 use std::ptr;
 use std::str;
 use std::sync::mpsc::Receiver;
@@ -19,19 +19,19 @@ use self::glfw::{Action, Context, Key};
 const SCR_WIDTH: u32 = 800;
 const SCR_HEIGHT: u32 = 600;
 
-const vertexShaderSource: &str = r#"
+const VERTEX_SHADER_SOURCE: &str = r#"
     #version 330 core
-    layour (location = 0) in vec3 aPos;
+    layout (location = 0) in vec3 aPos;
     void main() {
         gl_Position = vec4(aPos.x, aPos.y, aPos.z, 1.0);
     }
 "#;
 
-const fragmentShaderSource: &str = r#"
+const FRAGMENT_SHADER_SOURCE: &str = r#"
     #version 330 core
     out vec4 FragColor;
     void main() {
-        FragColor = vec4(1.0f, 0.5f, 0.2f, 1.0f);
+        FragColor = vec4(1.0f, 0.0f, 0.4f, 1.0f);
     }
 "#;
 
@@ -63,7 +63,7 @@ fn main() {
     let (shaderProgram, VAO) = unsafe {
         //Vertex Shader
         let vertexShader = gl::CreateShader(gl::VERTEX_SHADER);
-        let c_str_vert = CString::new(vertexShaderSource.as_bytes()).unwrap();
+        let c_str_vert = CString::new(VERTEX_SHADER_SOURCE.as_bytes()).unwrap();
         gl::ShaderSource(vertexShader, 1, &c_str_vert.as_ptr(), ptr::null());
         gl::CompileShader(vertexShader);
 
@@ -87,9 +87,9 @@ fn main() {
 
         //Fragment shader
         let fragmentShader = gl::CreateShader(gl::FRAGMENT_SHADER);
-        let c_str_frag = CString::new(fragmentShaderSource.as_bytes()).unwrap();
+        let c_str_frag = CString::new(FRAGMENT_SHADER_SOURCE.as_bytes()).unwrap();
         gl::ShaderSource(fragmentShader, 1, &c_str_frag.as_ptr(), ptr::null());
-
+        gl::CompileShader(fragmentShader);
         //Check for shader compile erros
         gl::GetShaderiv(fragmentShader, gl::COMPILE_STATUS, &mut success);
         if success != gl::TRUE as GLint {
@@ -136,8 +136,8 @@ fn main() {
         gl::BindBuffer(gl::ARRAY_BUFFER, VBO);
         gl::BufferData(
             gl::ARRAY_BUFFER,
-            (vertices.len() * mem::size_of::<GLfloat>()) as GLsizeiptr,
-            &vertices[0] as *const f32 as *const c_void,
+            mem::size_of_val(&vertices) as GLsizeiptr,
+            vertices.as_ptr() as *const c_void,
             gl::STATIC_DRAW,
         );
 
@@ -164,7 +164,7 @@ fn main() {
 
         //Render
         unsafe {
-            gl::ClearColor(0.2, 0.2, 0.3, 1.0);
+            gl::ClearColor(0.2, 0.2, 0.5, 1.0);
             gl::Clear(gl::COLOR_BUFFER_BIT);
 
             gl::UseProgram(shaderProgram);
