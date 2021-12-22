@@ -91,7 +91,7 @@ fn main() {
 
         //Render
         unsafe {
-            gl::ClearColor(0.2, 0.2, 0.5, 1.0);
+            gl::ClearColor(0.1, 0.1, 0.1, 1.0);
             gl::Clear(gl::COLOR_BUFFER_BIT);
 
             ourShader.UseProgram();
