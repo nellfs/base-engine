@@ -9,3 +9,4 @@ resolver = "2"
 [dependencies]
 gl = "0.14.0"
 glfw = "0.43.0"
+image = "0.23.14"
