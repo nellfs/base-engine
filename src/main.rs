@@ -28,12 +28,7 @@ fn main() {
     glfw.window_hint(glfw::WindowHint::OpenGlForwardCompat(true));
     //Window
     let (mut window, events) = glfw
-        .create_window(
-            SCR_WIDTH,
-            SCR_HEIGHT,
-            "OpenGL window",
-            glfw::WindowMode::Windowed,
-        )
+        .create_window(SCR_WIDTH, SCR_HEIGHT, "Engine", glfw::WindowMode::Windowed)
         .expect("Failed to create GLFW window");
     window.make_current();
     window.set_key_polling(true);
@@ -47,11 +42,12 @@ fn main() {
 
         let vertices: [f32; 32] = [
             // positions       // colors        // texture coords
-            0.5, 0.5, 0.0, 1.0, 0.0, 0.0, 1.0, 1.0, // top right
-            0.5, -0.5, 0.0, 0.0, 1.0, 0.0, 1.0, 0.0, // bottom right
+            0.5, 0.5, 0.0, 1.0, 0.0, 0.0, -1.0, -1.0, // top right
+            0.5, -0.5, 0.0, 0.0, 1.0, 0.0, -1.0, 0.0, // bottom right
             -0.5, -0.5, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, // bottom left
-            -0.5, 0.5, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, // top left
+            -0.5, 0.5, 0.0, 1.0, 1.0, 0.0, 0.0, -1.0, // top left
         ];
+
         let (mut vbo, mut vao) = (0, 0);
         gl::GenVertexArrays(1, &mut vao);
         gl::GenBuffers(1, &mut vbo);
@@ -103,7 +99,7 @@ fn main() {
         gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, gl::LINEAR as i32);
         gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, gl::LINEAR as i32);
 
-        let img = image::open("assets/wall.jpg").unwrap().to_rgb8();
+        let img = image::open("assets/cut.jpg").unwrap().to_rgb8();
         let img_width = img.width() as i32;
         let img_height = img.height() as i32;
         let data: Vec<u8> = img.into_raw();
@@ -139,12 +135,17 @@ fn main() {
 
             our_shader.useprogram();
             gl::BindVertexArray(vao);
-            gl::DrawElements(gl::TRIANGLES, 6, gl::UNSIGNED_INT, ptr::null());
+            gl::DrawArrays(gl::TRIANGLES, 0, 3);
         }
 
         // GLFW: Swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
         window.swap_buffers();
         glfw.poll_events();
+    }
+    unsafe {
+        gl::DeleteVertexArrays(1, &vao);
+        //gl::DeleteBuffers(1, &vbo);
+        //gl::DeleteBuffers(1, &ebo);
     }
 }
 
