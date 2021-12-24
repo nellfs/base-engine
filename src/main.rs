@@ -37,7 +37,7 @@ fn main() {
     //gl: Load all OpenGL function pointers
     gl::load_with(|symbol| window.get_proc_address(symbol) as *const _);
 
-    let (our_shader, vao, texture) = unsafe {
+    let (our_shader, vbo, vao, ebo, texture) = unsafe {
         let our_shader = Shader::new("src/shaders/shader.vs", "src/shaders/shader.fs");
 
         let vertices: [f32; 32] = [
@@ -48,17 +48,31 @@ fn main() {
             -0.5, 0.5, 0.0, 1.0, 1.0, 0.0, 0.0, -1.0, // top left
         ];
 
-        let (mut vbo, mut vao) = (0, 0);
+        let indices = [0, 1, 3, 1, 2, 3];
+
+        let (mut vbo, mut vao, mut ebo) = (0, 0, 0);
         gl::GenVertexArrays(1, &mut vao);
         gl::GenBuffers(1, &mut vbo);
+        gl::GenBuffers(1, &mut ebo);
+
         gl::BindVertexArray(vao);
+
         gl::BindBuffer(gl::ARRAY_BUFFER, vbo);
         gl::BufferData(
             gl::ARRAY_BUFFER,
-            mem::size_of_val(&vertices) as GLsizeiptr,
-            vertices.as_ptr() as *const c_void,
+            (vertices.len() * mem::size_of::<GLfloat>()) as GLsizeiptr,
+            &vertices[0] as *const f32 as *const c_void,
             gl::STATIC_DRAW,
         );
+
+        gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER, ebo);
+        gl::BufferData(
+            gl::ELEMENT_ARRAY_BUFFER,
+            (indices.len() * mem::size_of::<GLfloat>()) as GLsizeiptr,
+            &indices[0] as *const i32 as *const c_void,
+            gl::STATIC_DRAW,
+        );
+
         let stride = 8 * mem::size_of::<GLfloat>() as GLsizei;
 
         //Position
@@ -117,7 +131,7 @@ fn main() {
         );
         gl::GenerateMipmap(gl::TEXTURE_2D);
 
-        (our_shader, vao, texture)
+        (our_shader, vbo, vao, ebo, texture)
     };
 
     // Render loop
@@ -135,7 +149,7 @@ fn main() {
 
             our_shader.useprogram();
             gl::BindVertexArray(vao);
-            gl::DrawArrays(gl::TRIANGLES, 0, 3);
+            gl::DrawElements(gl::TRIANGLES, 6, gl::UNSIGNED_INT, ptr::null());
         }
 
         // GLFW: Swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
@@ -144,8 +158,8 @@ fn main() {
     }
     unsafe {
         gl::DeleteVertexArrays(1, &vao);
-        //gl::DeleteBuffers(1, &vbo);
-        //gl::DeleteBuffers(1, &ebo);
+        gl::DeleteBuffers(1, &vbo);
+        gl::DeleteBuffers(1, &ebo);
     }
 }
 
