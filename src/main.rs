@@ -1,16 +1,26 @@
+mod macros;
 mod shader;
 
 extern crate gl;
 extern crate glfw;
 
 use std::ffi::c_void;
+use std::ffi::CStr;
 use std::mem;
 use std::ptr;
 use std::sync::mpsc::Receiver;
 
+use cgmath::perspective;
+use cgmath::vec3;
+use cgmath::Deg;
+use cgmath::InnerSpace;
+use cgmath::Rad;
+use cgmath::Vector3;
+use cgmath::{Matrix, Matrix4};
 use gl::types::GLfloat;
 use gl::types::GLsizei;
 use gl::types::GLsizeiptr;
+use image::imageops;
 use shader::Shader;
 
 use self::glfw::{Action, Context, Key};
@@ -37,23 +47,72 @@ fn main() {
     //gl: Load all OpenGL function pointers
     gl::load_with(|symbol| window.get_proc_address(symbol) as *const _);
 
-    let (our_shader, vbo, vao, ebo, texture) = unsafe {
+    let (our_shader, vbo, vao, texture1, texture2, cube_positions) = unsafe {
         let our_shader = Shader::new("src/shaders/shader.vs", "src/shaders/shader.fs");
 
-        let vertices: [f32; 32] = [
-            // positions       // colors        // texture coords
-            0.5, 0.5, 0.0, 1.0, 0.0, 0.0, -1.0, -1.0, // top right
-            0.5, -0.5, 0.0, 0.0, 1.0, 0.0, -1.0, 0.0, // bottom right
-            -0.5, -0.5, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, // bottom left
-            -0.5, 0.5, 0.0, 1.0, 1.0, 0.0, 0.0, -1.0, // top left
+        gl::Enable(gl::DEPTH_TEST);
+
+        #[rustfmt::skip]
+        let vertices: [f32; 180] = [
+             -0.5, -0.5, -0.5,  0.0, 0.0,
+              0.5, -0.5, -0.5,  1.0, 0.0,
+              0.5,  0.5, -0.5,  1.0, 1.0,
+              0.5,  0.5, -0.5,  1.0, 1.0,
+             -0.5,  0.5, -0.5,  0.0, 1.0,
+             -0.5, -0.5, -0.5,  0.0, 0.0,
+
+             -0.5, -0.5,  0.5,  0.0, 0.0,
+              0.5, -0.5,  0.5,  1.0, 0.0,
+              0.5,  0.5,  0.5,  1.0, 1.0,
+              0.5,  0.5,  0.5,  1.0, 1.0,
+             -0.5,  0.5,  0.5,  0.0, 1.0,
+             -0.5, -0.5,  0.5,  0.0, 0.0,
+
+             -0.5,  0.5,  0.5,  1.0, 0.0,
+             -0.5,  0.5, -0.5,  1.0, 1.0,
+             -0.5, -0.5, -0.5,  0.0, 1.0,
+             -0.5, -0.5, -0.5,  0.0, 1.0,
+             -0.5, -0.5,  0.5,  0.0, 0.0,
+             -0.5,  0.5,  0.5,  1.0, 0.0,
+
+              0.5,  0.5,  0.5,  1.0, 0.0,
+              0.5,  0.5, -0.5,  1.0, 1.0,
+              0.5, -0.5, -0.5,  0.0, 1.0,
+              0.5, -0.5, -0.5,  0.0, 1.0,
+              0.5, -0.5,  0.5,  0.0, 0.0,
+              0.5,  0.5,  0.5,  1.0, 0.0,
+
+             -0.5, -0.5, -0.5,  0.0, 1.0,
+              0.5, -0.5, -0.5,  1.0, 1.0,
+              0.5, -0.5,  0.5,  1.0, 0.0,
+              0.5, -0.5,  0.5,  1.0, 0.0,
+             -0.5, -0.5,  0.5,  0.0, 0.0,
+             -0.5, -0.5, -0.5,  0.0, 1.0,
+
+             -0.5,  0.5, -0.5,  0.0, 1.0,
+              0.5,  0.5, -0.5,  1.0, 1.0,
+              0.5,  0.5,  0.5,  1.0, 0.0,
+              0.5,  0.5,  0.5,  1.0, 0.0,
+             -0.5,  0.5,  0.5,  0.0, 0.0,
+             -0.5,  0.5, -0.5,  0.0, 1.0
         ];
 
-        let indices = [0, 1, 3, 1, 2, 3];
+        let cube_positions: [Vector3<f32>; 10] = [
+            vec3(0.0, 0.0, 0.0),
+            vec3(2.0, 5.0, -15.0),
+            vec3(-1.5, -2.2, -2.5),
+            vec3(-3.8, -2.0, -12.3),
+            vec3(2.4, -0.4, -3.5),
+            vec3(-1.7, 3.0, -7.5),
+            vec3(1.3, -2.0, -2.5),
+            vec3(1.5, 2.0, -2.5),
+            vec3(1.5, 0.2, -1.5),
+            vec3(-1.3, 1.0, -1.5),
+        ];
 
-        let (mut vbo, mut vao, mut ebo) = (0, 0, 0);
+        let (mut vbo, mut vao) = (0, 0);
         gl::GenVertexArrays(1, &mut vao);
         gl::GenBuffers(1, &mut vbo);
-        gl::GenBuffers(1, &mut ebo);
 
         gl::BindVertexArray(vao);
 
@@ -65,24 +124,15 @@ fn main() {
             gl::STATIC_DRAW,
         );
 
-        gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER, ebo);
-        gl::BufferData(
-            gl::ELEMENT_ARRAY_BUFFER,
-            (indices.len() * mem::size_of::<GLfloat>()) as GLsizeiptr,
-            &indices[0] as *const i32 as *const c_void,
-            gl::STATIC_DRAW,
-        );
-
-        let stride = 8 * mem::size_of::<GLfloat>() as GLsizei;
+        let stride = 5 * mem::size_of::<GLfloat>() as GLsizei;
 
         //Position
         gl::VertexAttribPointer(0, 3, gl::FLOAT, gl::FALSE, stride, ptr::null());
         gl::EnableVertexAttribArray(0);
 
-        //Color
         gl::VertexAttribPointer(
             1,
-            3,
+            2,
             gl::FLOAT,
             gl::FALSE,
             stride,
@@ -90,20 +140,12 @@ fn main() {
         );
         gl::EnableVertexAttribArray(1);
 
-        gl::VertexAttribPointer(
-            2,
-            2,
-            gl::FLOAT,
-            gl::FALSE,
-            stride,
-            (6 * mem::size_of::<GLfloat>()) as *const c_void,
-        );
-        gl::EnableVertexAttribArray(2);
+        //Load and create textures
+        let (mut texture1, mut texture2) = (0, 0);
 
-        //Load and create a texture
-        let mut texture = 0;
-        gl::GenTextures(1, &mut texture);
-        gl::BindTexture(gl::TEXTURE_2D, texture);
+        //Texture 1
+        gl::GenTextures(1, &mut texture1);
+        gl::BindTexture(gl::TEXTURE_2D, texture1);
 
         //Set the texture wrapping parameters
         gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_S, gl::REPEAT as i32);
@@ -113,10 +155,13 @@ fn main() {
         gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, gl::LINEAR as i32);
         gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, gl::LINEAR as i32);
 
-        let img = image::open("assets/cut.jpg").unwrap().to_rgb8();
-        let img_width = img.width() as i32;
-        let img_height = img.height() as i32;
-        let data: Vec<u8> = img.into_raw();
+        //Texture 1 - Image
+        let mut img = image::open("assets/dirt.jpg").unwrap().to_rgb8();
+        let subimg = imageops::flip_vertical(&mut img);
+
+        let img_width = subimg.width() as i32;
+        let img_height = subimg.height() as i32;
+        let data: Vec<u8> = subimg.into_raw();
 
         gl::TexImage2D(
             gl::TEXTURE_2D,
@@ -131,7 +176,44 @@ fn main() {
         );
         gl::GenerateMipmap(gl::TEXTURE_2D);
 
-        (our_shader, vbo, vao, ebo, texture)
+        //Texture2
+        gl::GenTextures(1, &mut texture2);
+        gl::BindTexture(gl::TEXTURE_2D, texture2);
+
+        //Set the texture wrapping parameters
+        gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_S, gl::REPEAT as i32);
+        gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_T, gl::REPEAT as i32);
+
+        //Set texture filterting parameters
+        gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, gl::LINEAR as i32);
+        gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, gl::LINEAR as i32);
+
+        //Texture 2 - Image
+        let mut img = image::open("assets/awesomebitface.png").unwrap().to_rgb8();
+        let subimg = imageops::flip_vertical(&mut img);
+        let img_width = subimg.width() as i32;
+        let img_height = subimg.height() as i32;
+        let data: Vec<u8> = subimg.into_raw();
+
+        gl::TexImage2D(
+            gl::TEXTURE_2D,
+            0,
+            gl::RGB as i32,
+            img_width,
+            img_height,
+            0,
+            gl::RGB,
+            gl::UNSIGNED_BYTE,
+            &data[0] as *const u8 as *const c_void,
+        );
+        gl::GenerateMipmap(gl::TEXTURE_2D);
+
+        our_shader.useprogram();
+        our_shader.set_int(c_str!("texture1"), 0);
+        our_shader.set_int(c_str!("texture2"), 1);
+
+        //Out
+        (our_shader, vbo, vao, texture1, texture2, cube_positions)
     };
 
     // Render loop
@@ -142,14 +224,45 @@ fn main() {
         //Render
         unsafe {
             gl::ClearColor(0.1, 0.1, 0.1, 1.0);
-            gl::Clear(gl::COLOR_BUFFER_BIT);
+            gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
 
             //Bind texture
-            gl::BindTexture(gl::TEXTURE_2D, texture);
+            gl::ActiveTexture(gl::TEXTURE0);
+            gl::BindTexture(gl::TEXTURE_2D, texture1);
+            gl::ActiveTexture(gl::TEXTURE1);
+            gl::BindTexture(gl::TEXTURE_2D, texture2);
 
             our_shader.useprogram();
+
+            let model: Matrix4<f32> = Matrix4::from_axis_angle(
+                vec3(0.5, 1.0, 0.0).normalize(),
+                Rad(glfw.get_time() as f32),
+            );
+            let view: Matrix4<f32> = Matrix4::from_translation(vec3(0., 0., -3.));
+            let projection: Matrix4<f32> =
+                perspective(Deg(45.0), SCR_WIDTH as f32 / SCR_HEIGHT as f32, 0.1, 100.0);
+
+            let model_loc = gl::GetUniformLocation(our_shader.id, c_str!("model").as_ptr());
+            let view_loc = gl::GetUniformLocation(our_shader.id, c_str!("view").as_ptr());
+
+            gl::UniformMatrix4fv(model_loc, 1, gl::FALSE, model.as_ptr());
+            gl::UniformMatrix4fv(view_loc, 1, gl::FALSE, &view[0][0]);
+
+            our_shader.set_mat4(c_str!("projection"), &projection);
+
             gl::BindVertexArray(vao);
-            gl::DrawElements(gl::TRIANGLES, 6, gl::UNSIGNED_INT, ptr::null());
+
+            for (i, position) in cube_positions.iter().enumerate() {
+                let mut model: Matrix4<f32> = Matrix4::from_translation(*position);
+                let angle = 20.0 * i as f32;
+                model =
+                    model * Matrix4::from_axis_angle(vec3(1.0, 0.3, 0.5).normalize(), Deg(angle));
+                our_shader.set_mat4(c_str!("model"), &model);
+
+                gl::DrawArrays(gl::TRIANGLES, 0, 36);
+            }
+
+            gl::DrawArrays(gl::TRIANGLES, 0, 36);
         }
 
         // GLFW: Swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
@@ -159,7 +272,6 @@ fn main() {
     unsafe {
         gl::DeleteVertexArrays(1, &vao);
         gl::DeleteBuffers(1, &vbo);
-        gl::DeleteBuffers(1, &ebo);
     }
 }
 

@@ -1,5 +1,11 @@
-use std::{ffi::CString, fs::File, io::Read, ptr};
+use std::{
+    ffi::{CStr, CString},
+    fs::File,
+    io::Read,
+    ptr,
+};
 
+use cgmath::{Matrix, Matrix4};
 use gl::types::{GLchar, GLint};
 
 pub struct Shader {
@@ -60,6 +66,19 @@ impl Shader {
     //Activate the shader
     pub unsafe fn useprogram(&self) {
         gl::UseProgram(self.id)
+    }
+
+    pub unsafe fn set_int(&self, name: &CStr, value: i32) {
+        gl::Uniform1i(gl::GetUniformLocation(self.id, name.as_ptr()), value);
+    }
+
+    pub unsafe fn set_mat4(&self, name: &CStr, mat: &Matrix4<f32>) {
+        gl::UniformMatrix4fv(
+            gl::GetUniformLocation(self.id, name.as_ptr()),
+            1,
+            gl::FALSE,
+            mat.as_ptr(),
+        );
     }
 
     ///Utility function for checking shader compilation/linking errors.
