@@ -25,7 +25,7 @@ use shader::Shader;
 
 use self::glfw::{Action, Context, Key};
 
-const SCALE: u32 = 2;
+const SCALE: u32 = 1;
 const SCR_WIDTH: u32 = 800 / SCALE;
 const SCR_HEIGHT: u32 = 600 / SCALE;
 
